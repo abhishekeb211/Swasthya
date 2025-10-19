@@ -1,6 +1,6 @@
 # Swasthya: India's Decentralized Health Intelligence Network
 
-![Static Badge](https://img.shields.io/badge/status-in%20progress-blue) ![Static Badge](https://img.shields.io/badge/license-Apache_2.0-green) ![Static Badge](https://img.shields.io/badge/tech-Blockchain%2C_AI%2C_IoT-purple)
+![Static Badge](https://img.shields.io/badge/status-in%20progress-blue) ![Static Badge](https://img.shields.io/badge/tech-Blockchain%2C_AI%2C_IoT-purple)
 
 ---
 
