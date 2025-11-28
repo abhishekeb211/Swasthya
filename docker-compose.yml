@@ -1,0 +1,246 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------
+  # 1. CORE INFRASTRUCTURE
+  # ----------------------------------------------------------------
+  swasthya-postgres:
+    image: postgres:15
+    container_name: swasthya-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount initialization scripts to auto-create schemas on first startup
+      - ./data:/docker-entrypoint-initdb.d
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    networks:
+      - swasthya-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  swasthya-mlflow:
+    build: ./mlflow
+    container_name: swasthya-mlflow
+    depends_on:
+      - swasthya-postgres
+    environment:
+      BACKEND_STORE_URI: postgresql://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@swasthya-postgres:5432/${MLFLOW_DB_NAME}
+      ARTIFACT_ROOT: /mlflow/artifacts
+    ports:
+      - "${MLFLOW_PORT}:5000"
+    volumes:
+      - mlflow_data:/mlflow/artifacts
+    networks:
+      - swasthya-net
+    command: >
+      mlflow server 
+      --backend-store-uri postgresql://${MLFLOW_DB_USER}:${MLFLOW_DB_PASSWORD}@swasthya-postgres:5432/${MLFLOW_DB_NAME} 
+      --host 0.0.0.0 
+      --port 5000
+
+  # ----------------------------------------------------------------
+  # 2. ORCHESTRATOR (Node.js)
+  # ----------------------------------------------------------------
+  swasthya-orchestrator:
+    build: ./orchestrator
+    container_name: swasthya-orchestrator
+    depends_on:
+      swasthya-postgres:
+        condition: service_healthy
+      swasthya-demand-forecast:
+        condition: service_started
+    environment:
+      - PORT=${ORCHESTRATOR_PORT}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASS=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      # Agent URLs
+      - AGENT_DEMAND_URL=http://swasthya-demand-forecast:8001
+      - AGENT_STAFF_URL=http://swasthya-staff-scheduling:8002
+      - AGENT_EROR_URL=http://swasthya-eror-scheduling:8003
+      - AGENT_DISCHARGE_URL=http://swasthya-discharge-planning:8004
+      - AGENT_TRIAGE_URL=http://swasthya-triage-acuity:8005
+    ports:
+      - "${ORCHESTRATOR_PORT}:${ORCHESTRATOR_PORT}"
+    networks:
+      - swasthya-net
+
+  # ----------------------------------------------------------------
+  # 3. AI AGENTS (Python Microservices)
+  # ----------------------------------------------------------------
+  swasthya-demand-forecast:
+    build: ./agents/demand_forecast
+    container_name: swasthya-demand-forecast
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    ports:
+      - "${PORT_DEMAND_FORECAST}:8001"
+    networks:
+      - swasthya-net
+
+  swasthya-staff-scheduling:
+    build: ./agents/staff_scheduling
+    container_name: swasthya-staff-scheduling
+    environment:
+      - PORT=8002
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+    ports:
+      - "${PORT_STAFF_SCHEDULING}:8002"
+    networks:
+      - swasthya-net
+
+  swasthya-eror-scheduling:
+    build: ./agents/eror_scheduling
+    container_name: swasthya-eror-scheduling
+    environment:
+      - PORT=8003
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+    ports:
+      - "${PORT_EROR_SCHEDULING}:8003"
+    networks:
+      - swasthya-net
+
+  swasthya-discharge-planning:
+    build: ./agents/discharge_planning
+    container_name: swasthya-discharge-planning
+    environment:
+      - PORT=8004
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    ports:
+      - "${PORT_DISCHARGE_PLANNING}:8004"
+    networks:
+      - swasthya-net
+
+  swasthya-triage-acuity:
+    build: ./agents/triage_acuity
+    container_name: swasthya-triage-acuity
+    environment:
+      - PORT=8005
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    ports:
+      - "${PORT_TRIAGE_ACUITY}:8005"
+    networks:
+      - swasthya-net
+
+  # ----------------------------------------------------------------
+  # 4. FEDERATED LEARNING SERVERS
+  # ----------------------------------------------------------------
+  fl-demand-server:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.server
+    container_name: fl-demand-server
+    command: python -m server.demand_server --port ${FL_DEMAND_PORT}
+    ports:
+      - "${FL_DEMAND_PORT}:${FL_DEMAND_PORT}"
+    networks:
+      - swasthya-net
+
+  fl-triage-server:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.server
+    container_name: fl-triage-server
+    command: python -m server.triage_server --port ${FL_TRIAGE_PORT}
+    ports:
+      - "${FL_TRIAGE_PORT}:${FL_TRIAGE_PORT}"
+    networks:
+      - swasthya-net
+
+  # ----------------------------------------------------------------
+  # 5. FEDERATED LEARNING CLIENTS (Simulation)
+  # ----------------------------------------------------------------
+  # Demand Forecast Clients (Training ARIMA/Prophet locally)
+  fl-demand-client-1:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.demand_client --cid 1 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    volumes:
+      - ./datasets:/app/datasets # Mounting dummy CSV data
+    depends_on:
+      - fl-demand-server
+    networks:
+      - swasthya-net
+
+  fl-demand-client-2:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.demand_client --cid 2 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    volumes:
+      - ./datasets:/app/datasets
+    depends_on:
+      - fl-demand-server
+    networks:
+      - swasthya-net
+
+  fl-demand-client-3:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.demand_client --cid 3 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    volumes:
+      - ./datasets:/app/datasets
+    depends_on:
+      - fl-demand-server
+    networks:
+      - swasthya-net
+
+  # Triage Clients (Training XGBoost locally)
+  fl-triage-client-1:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.triage_client --cid 1 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    volumes:
+      - ./datasets:/app/datasets
+    depends_on:
+      - fl-triage-server
+    networks:
+      - swasthya-net
+
+  fl-triage-client-2:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.triage_client --cid 2 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    volumes:
+      - ./datasets:/app/datasets
+    depends_on:
+      - fl-triage-server
+    networks:
+      - swasthya-net
+
+  fl-triage-client-3:
+    build:
+      context: ./federated_learning
+      dockerfile: Dockerfile.client
+    command: python -m client.triage_client --cid 3 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    volumes:
+      - ./datasets:/app/datasets
+    depends_on:
+      - fl-triage-server
+    networks:
+      - swasthya-net
+
+networks:
+  swasthya-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mlflow_data:
