@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # One-shot deployer service: waits for Hardhat node and deploys contracts once.
+  blockchain_deployer:
+    build:
+      context: ./blockchain
+      dockerfile: Dockerfile.node
+    image: swasthya-hardhat-deployer:latest
+    depends_on:
+      - blockchain_node
+    volumes:
+      - ./blockchain:/work/blockchain
+    # Run the auto_deploy.sh script in the container; it exits after deployment.
+    command: ["bash", "-c", "chmod +x /work/blockchain/auto_deploy.sh || true && /work/blockchain/auto_deploy.sh"]
+    restart: "no"
