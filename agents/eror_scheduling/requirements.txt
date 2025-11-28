@@ -1,0 +1,20 @@
+# ER/OR Scheduling Agent Dependencies
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+
+# Optimization (Google OR-Tools)
+ortools==9.8.3296
+
+# Machine Learning
+xgboost==2.0.3
+scikit-learn==1.4.0
+numpy==1.26.3
+
+# HTTP Client (for orchestrator communication)
+httpx==0.26.0
+
+# Environment configuration
+python-dotenv==1.0.0
