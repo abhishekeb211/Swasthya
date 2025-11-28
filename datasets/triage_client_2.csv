@@ -1,0 +1,6 @@
+symptoms,vitals_json,acuity_label
+"Cardiac arrest, unresponsive","{\"hr\": 0, \"bp_sys\": 0, \"bp_dia\": 0, \"spo2\": 78, \"temp\": 35.5}",1
+"Stroke symptoms, facial droop, slurred speech","{\"hr\": 88, \"bp_sys\": 185, \"bp_dia\": 110, \"spo2\": 95, \"temp\": 37.0}",1
+"Asthma attack, severe wheezing","{\"hr\": 115, \"bp_sys\": 140, \"bp_dia\": 88, \"spo2\": 88, \"temp\": 37.1}",2
+"Ankle sprain, moderate swelling","{\"hr\": 76, \"bp_sys\": 122, \"bp_dia\": 78, \"spo2\": 99, \"temp\": 36.8}",4
+"Headache, runny nose","{\"hr\": 70, \"bp_sys\": 115, \"bp_dia\": 72, \"spo2\": 99, \"temp\": 37.3}",5
