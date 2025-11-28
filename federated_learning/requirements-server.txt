@@ -1,0 +1,63 @@
+# =============================================================================
+# FEDERATED LEARNING SERVER - DEPENDENCIES
+# =============================================================================
+#
+# This file lists dependencies for the FL server container.
+# The server is lightweight - it only coordinates training, never processes data.
+#
+# Install: pip install -r requirements-server.txt
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# FLOWER FRAMEWORK - Federated Learning
+# -----------------------------------------------------------------------------
+# Flower is our federated learning framework.
+# Version 1.7.0 provides stable gRPC server and strategy APIs.
+flwr==1.7.0
+
+# gRPC dependencies (included with Flower, but pinned for stability)
+grpcio>=1.60.0,<2.0.0
+grpcio-tools>=1.60.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# CORE SCIENTIFIC COMPUTING
+# -----------------------------------------------------------------------------
+# NumPy for parameter aggregation
+numpy>=1.24.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# UTILITIES
+# -----------------------------------------------------------------------------
+# Type hints
+typing-extensions>=4.5.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# -----------------------------------------------------------------------------
+# OPTIONAL: MONITORING & OBSERVABILITY
+# -----------------------------------------------------------------------------
+# Prometheus metrics (optional)
+# prometheus-client>=0.19.0
+
+# Structured logging (optional)
+# structlog>=24.0.0
+
+# =============================================================================
+# NOTES
+# =============================================================================
+#
+# The server does NOT need:
+# - Prophet (demand clients train the model)
+# - XGBoost (triage clients train the model)
+# - Pandas (clients prepare data)
+# - scikit-learn (clients evaluate models)
+#
+# This keeps the server container small (~200MB) and fast to deploy.
+#
+# For monitoring, consider adding:
+# - prometheus-client for metrics
+# - opentelemetry for tracing
+#
+# =============================================================================

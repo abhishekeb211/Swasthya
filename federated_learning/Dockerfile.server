@@ -1,0 +1,129 @@
+# =============================================================================
+# FEDERATED LEARNING SERVER - DOCKER IMAGE
+# =============================================================================
+#
+# This Dockerfile builds the FL server container that coordinates
+# federated learning across hospital clients.
+#
+# USAGE:
+#   Build:  docker build -f Dockerfile.server -t fl-server .
+#   Run:    docker run -p 8087:8087 fl-server
+#
+# ARCHITECTURE:
+#   ┌─────────────────────────────────────────────────────────────┐
+#   │                     FL SERVER CONTAINER                      │
+#   │                                                             │
+#   │   ┌───────────────────────────────────────────────────┐    │
+#   │   │              Python 3.11 Runtime                   │    │
+#   │   │  • Flower FL Framework v1.7.0                      │    │
+#   │   │  • BestModelStrategy (custom aggregation)          │    │
+#   │   │  • gRPC server for client communication            │    │
+#   │   └───────────────────────────────────────────────────┘    │
+#   │                                                             │
+#   │   Ports:                                                    │
+#   │   • 8087: Demand forecasting FL server                     │
+#   │   • 8086: Triage prediction FL server                      │
+#   │                                                             │
+#   │   No patient data storage - coordination only               │
+#   └─────────────────────────────────────────────────────────────┘
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build Stage
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements-server.txt .
+RUN pip install --no-cache-dir --user -r requirements-server.txt
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime Stage
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim as runtime
+
+# Labels
+LABEL maintainer="Hospital AI Platform Team"
+LABEL description="Federated Learning Server for Healthcare AI"
+LABEL version="1.0.0"
+
+# Environment configuration
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    # FL Server configuration
+    FL_SERVER_ADDRESS=0.0.0.0:8087 \
+    FL_TRIAGE_SERVER_ADDRESS=0.0.0.0:8086 \
+    FL_NUM_ROUNDS=5 \
+    FL_MIN_FIT_CLIENTS=2 \
+    FL_MIN_EVAL_CLIENTS=2 \
+    FL_MODEL_SAVE_PATH=/models
+
+# Create non-root user for security
+RUN groupadd --gid 1000 flserver && \
+    useradd --uid 1000 --gid flserver --shell /bin/bash --create-home flserver
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /home/flserver/.local
+ENV PATH=/home/flserver/.local/bin:$PATH
+
+# Create working directory
+WORKDIR /app
+
+# Copy server code
+COPY server/ /app/server/
+
+# Create model storage directory
+RUN mkdir -p /models && chown -R flserver:flserver /models
+
+# Set ownership
+RUN chown -R flserver:flserver /app
+
+# Switch to non-root user
+USER flserver
+
+# Expose ports
+# 8087: Demand forecasting FL server
+# 8086: Triage prediction FL server
+EXPOSE 8087 8086
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import socket; s=socket.socket(); s.settimeout(5); s.connect(('localhost', 8087)); s.close()" || exit 1
+
+# Default command: Start demand server
+# Override with --entrypoint for triage server
+CMD ["python", "-m", "server.demand_server"]
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+#
+# Run demand server:
+#   docker run -p 8087:8087 fl-server
+#
+# Run triage server:
+#   docker run -p 8086:8086 fl-server python -m server.triage_server
+#
+# Run with custom configuration:
+#   docker run -p 8087:8087 \
+#     -e FL_NUM_ROUNDS=10 \
+#     -e FL_MIN_FIT_CLIENTS=3 \
+#     fl-server
+#
+# Run with model persistence:
+#   docker run -p 8087:8087 \
+#     -v /host/models:/models \
+#     fl-server
+#
+# =============================================================================

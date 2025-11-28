@@ -1,0 +1,102 @@
+# =============================================================================
+# FEDERATED LEARNING CLIENT - DEPENDENCIES
+# =============================================================================
+#
+# This file lists dependencies for the FL client container.
+# Clients need full ML libraries to train models locally.
+#
+# Install: pip install -r requirements-client.txt
+#
+# NOTE: Building Prophet requires compilation (Stan backend).
+# Allow 5-10 minutes for initial build.
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# FLOWER FRAMEWORK - Federated Learning
+# -----------------------------------------------------------------------------
+flwr==1.7.0
+
+# gRPC dependencies
+grpcio>=1.60.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# DEMAND FORECASTING - Prophet
+# -----------------------------------------------------------------------------
+# Facebook Prophet for time-series forecasting
+# Note: Prophet compilation can take several minutes
+prophet==1.1.5
+
+# Prophet dependencies
+cmdstanpy>=1.2.0
+holidays>=0.40
+
+# Alternative: ARIMA from statsmodels (lighter weight)
+statsmodels>=0.14.0
+
+# -----------------------------------------------------------------------------
+# TRIAGE PREDICTION - XGBoost
+# -----------------------------------------------------------------------------
+# XGBoost for gradient boosting classification
+xgboost>=2.0.0,<3.0.0
+
+# scikit-learn for preprocessing and metrics
+scikit-learn>=1.3.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# DATA HANDLING
+# -----------------------------------------------------------------------------
+pandas>=2.0.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# UTILITIES
+# -----------------------------------------------------------------------------
+# Environment variables
+python-dotenv>=1.0.0
+
+# Type hints
+typing-extensions>=4.5.0
+
+# Compression (for model serialization)
+zlib-wrapper>=0.1.3
+
+# -----------------------------------------------------------------------------
+# OPTIONAL: DATA CONNECTORS
+# -----------------------------------------------------------------------------
+# PostgreSQL connector (if reading from hospital DB)
+# psycopg2-binary>=2.9.0
+
+# CSV handling improvements
+# pyarrow>=14.0.0
+
+# =============================================================================
+# BUILD NOTES
+# =============================================================================
+#
+# Prophet Build Requirements:
+# - C++ compiler (gcc/g++)
+# - CMake
+# - 2GB+ RAM for Stan compilation
+#
+# If Prophet build fails, try:
+# 1. Increase Docker build memory: docker build --memory=4g
+# 2. Use cmdstan binary: pip install cmdstanpy && install_cmdstan
+#
+# For faster builds, consider using pre-built Prophet wheels if available
+# for your architecture.
+#
+# =============================================================================
+# CONTAINER SIZE
+# =============================================================================
+#
+# Expected container size: ~2GB
+# - Prophet + Stan: ~1.2GB
+# - XGBoost: ~200MB
+# - Other dependencies: ~600MB
+#
+# To reduce size:
+# - Use multi-stage build (see Dockerfile.client)
+# - Remove test/doc files from packages
+#
+# =============================================================================

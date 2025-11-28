@@ -138,39 +138,81 @@ services:
   # ----------------------------------------------------------------
   # 4. FEDERATED LEARNING SERVERS
   # ----------------------------------------------------------------
+  # Demand Forecasting FL Server (Port 8087)
+  # Coordinates Prophet model training across hospitals
   fl-demand-server:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.server
     container_name: fl-demand-server
-    command: python -m server.demand_server --port ${FL_DEMAND_PORT}
+    environment:
+      - FL_SERVER_ADDRESS=0.0.0.0:${FL_DEMAND_PORT:-8087}
+      - FL_NUM_ROUNDS=${FL_NUM_ROUNDS:-5}
+      - FL_MIN_FIT_CLIENTS=${FL_MIN_CLIENTS:-2}
+      - FL_MIN_EVAL_CLIENTS=${FL_MIN_CLIENTS:-2}
+      - FL_MODEL_SAVE_PATH=/models
+    command: python -m server.demand_server --address 0.0.0.0:${FL_DEMAND_PORT:-8087}
     ports:
-      - "${FL_DEMAND_PORT}:${FL_DEMAND_PORT}"
+      - "${FL_DEMAND_PORT:-8087}:${FL_DEMAND_PORT:-8087}"
+    volumes:
+      - fl_models:/models
     networks:
       - swasthya-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('localhost', ${FL_DEMAND_PORT:-8087})); s.close()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
+  # Triage Prediction FL Server (Port 8086)
+  # Coordinates XGBoost model training across hospitals
   fl-triage-server:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.server
     container_name: fl-triage-server
-    command: python -m server.triage_server --port ${FL_TRIAGE_PORT}
+    environment:
+      - FL_TRIAGE_SERVER_ADDRESS=0.0.0.0:${FL_TRIAGE_PORT:-8086}
+      - FL_NUM_ROUNDS=${FL_NUM_ROUNDS:-5}
+      - FL_MIN_FIT_CLIENTS=${FL_MIN_CLIENTS:-2}
+      - FL_MIN_EVAL_CLIENTS=${FL_MIN_CLIENTS:-2}
+      - FL_MODEL_SAVE_PATH=/models
+    command: python -m server.triage_server --address 0.0.0.0:${FL_TRIAGE_PORT:-8086}
     ports:
-      - "${FL_TRIAGE_PORT}:${FL_TRIAGE_PORT}"
+      - "${FL_TRIAGE_PORT:-8086}:${FL_TRIAGE_PORT:-8086}"
+    volumes:
+      - fl_models:/models
     networks:
       - swasthya-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('localhost', ${FL_TRIAGE_PORT:-8086})); s.close()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
   # ----------------------------------------------------------------
-  # 5. FEDERATED LEARNING CLIENTS (Simulation)
+  # 5. FEDERATED LEARNING CLIENTS (Hospital Simulation)
   # ----------------------------------------------------------------
-  # Demand Forecast Clients (Training ARIMA/Prophet locally)
+  # Each client represents a hospital with local data
+  # Data sovereignty: patient data never leaves the container
+  
+  # Demand Forecast Clients (Training Prophet locally)
   fl-demand-client-1:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.demand_client --cid 1 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    container_name: fl-demand-client-hospital-alpha
+    environment:
+      - HOSPITAL_ID=hospital_alpha
+      - FL_SERVER_ADDRESS=fl-demand-server:${FL_DEMAND_PORT:-8087}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+      - FL_RETRY_DELAY=5.0
+    command: python -m client.demand_client --server fl-demand-server:${FL_DEMAND_PORT:-8087} --hospital-id hospital_alpha
     volumes:
-      - ./datasets:/app/datasets # Mounting dummy CSV data
+      - ./datasets:/data:ro  # Read-only mount for data sovereignty
     depends_on:
       - fl-demand-server
     networks:
@@ -180,9 +222,15 @@ services:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.demand_client --cid 2 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    container_name: fl-demand-client-hospital-beta
+    environment:
+      - HOSPITAL_ID=hospital_beta
+      - FL_SERVER_ADDRESS=fl-demand-server:${FL_DEMAND_PORT:-8087}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+    command: python -m client.demand_client --server fl-demand-server:${FL_DEMAND_PORT:-8087} --hospital-id hospital_beta
     volumes:
-      - ./datasets:/app/datasets
+      - ./datasets:/data:ro
     depends_on:
       - fl-demand-server
     networks:
@@ -192,22 +240,34 @@ services:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.demand_client --cid 3 --server_address fl-demand-server:${FL_DEMAND_PORT}
+    container_name: fl-demand-client-hospital-gamma
+    environment:
+      - HOSPITAL_ID=hospital_gamma
+      - FL_SERVER_ADDRESS=fl-demand-server:${FL_DEMAND_PORT:-8087}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+    command: python -m client.demand_client --server fl-demand-server:${FL_DEMAND_PORT:-8087} --hospital-id hospital_gamma
     volumes:
-      - ./datasets:/app/datasets
+      - ./datasets:/data:ro
     depends_on:
       - fl-demand-server
     networks:
       - swasthya-net
 
-  # Triage Clients (Training XGBoost locally)
+  # Triage Prediction Clients (Training XGBoost locally)
   fl-triage-client-1:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.triage_client --cid 1 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    container_name: fl-triage-client-hospital-alpha
+    environment:
+      - HOSPITAL_ID=hospital_alpha
+      - FL_TRIAGE_SERVER_ADDRESS=fl-triage-server:${FL_TRIAGE_PORT:-8086}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+    command: python -m client.triage_client --server fl-triage-server:${FL_TRIAGE_PORT:-8086} --hospital-id hospital_alpha
     volumes:
-      - ./datasets:/app/datasets
+      - ./datasets:/data:ro
     depends_on:
       - fl-triage-server
     networks:
@@ -217,9 +277,15 @@ services:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.triage_client --cid 2 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    container_name: fl-triage-client-hospital-beta
+    environment:
+      - HOSPITAL_ID=hospital_beta
+      - FL_TRIAGE_SERVER_ADDRESS=fl-triage-server:${FL_TRIAGE_PORT:-8086}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+    command: python -m client.triage_client --server fl-triage-server:${FL_TRIAGE_PORT:-8086} --hospital-id hospital_beta
     volumes:
-      - ./datasets:/app/datasets
+      - ./datasets:/data:ro
     depends_on:
       - fl-triage-server
     networks:
@@ -229,9 +295,15 @@ services:
     build:
       context: ./federated_learning
       dockerfile: Dockerfile.client
-    command: python -m client.triage_client --cid 3 --server_address fl-triage-server:${FL_TRIAGE_PORT}
+    container_name: fl-triage-client-hospital-gamma
+    environment:
+      - HOSPITAL_ID=hospital_gamma
+      - FL_TRIAGE_SERVER_ADDRESS=fl-triage-server:${FL_TRIAGE_PORT:-8086}
+      - FL_LOCAL_EPOCHS=1
+      - FL_MAX_RETRIES=15
+    command: python -m client.triage_client --server fl-triage-server:${FL_TRIAGE_PORT:-8086} --hospital-id hospital_gamma
     volumes:
-      - ./datasets:/app/datasets
+      - ./datasets:/data:ro
     depends_on:
       - fl-triage-server
     networks:
@@ -244,3 +316,4 @@ networks:
 volumes:
   postgres_data:
   mlflow_data:
+  fl_models:
