@@ -1,0 +1,87 @@
+# =============================================================================
+# DEMAND FORECAST AGENT - DEPENDENCIES
+# =============================================================================
+# Python 3.10+ required
+# Install: pip install -r requirements.txt
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WEB FRAMEWORK
+# -----------------------------------------------------------------------------
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# -----------------------------------------------------------------------------
+# FORECASTING / MACHINE LEARNING
+# -----------------------------------------------------------------------------
+# Prophet: Facebook's time series forecasting library
+# Excellent for data with strong seasonal effects (hospital demand patterns)
+prophet==1.1.5
+
+# Alternative: statsmodels for ARIMA (included for comparison/fallback)
+statsmodels==0.14.1
+
+# Core ML/Data libraries
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0,<3.0.0
+scikit-learn>=1.3.0,<2.0.0
+
+# -----------------------------------------------------------------------------
+# MLFLOW - EXPERIMENT TRACKING & MODEL REGISTRY
+# -----------------------------------------------------------------------------
+mlflow==2.10.0
+
+# -----------------------------------------------------------------------------
+# FEDERATED LEARNING
+# -----------------------------------------------------------------------------
+# Flower: A friendly federated learning framework
+flwr==1.6.0
+
+# -----------------------------------------------------------------------------
+# DATABASE
+# -----------------------------------------------------------------------------
+# PostgreSQL driver
+psycopg2-binary==2.9.9
+
+# SQLAlchemy for ORM and connection pooling
+sqlalchemy>=2.0.0,<3.0.0
+
+# -----------------------------------------------------------------------------
+# UTILITIES
+# -----------------------------------------------------------------------------
+# HTTP client for health checks and API calls
+httpx>=0.26.0,<1.0.0
+
+# Environment variable loading
+python-dotenv>=1.0.0,<2.0.0
+
+# Date/time handling
+python-dateutil>=2.8.0,<3.0.0
+
+# JSON handling
+orjson>=3.9.0,<4.0.0
+
+# -----------------------------------------------------------------------------
+# DEVELOPMENT / TESTING (Optional)
+# -----------------------------------------------------------------------------
+# pytest>=7.4.0
+# pytest-asyncio>=0.23.0
+# pytest-cov>=4.1.0
+# black>=23.0.0
+# ruff>=0.1.0
+# mypy>=1.8.0
+
+# -----------------------------------------------------------------------------
+# NOTES
+# -----------------------------------------------------------------------------
+# Prophet dependencies (automatically installed):
+# - cmdstanpy: Stan interface for MCMC
+# - holidays: Holiday calendars
+# - tqdm: Progress bars
+#
+# For GPU acceleration (optional):
+# - Install CUDA-enabled Prophet build
+# - Or use Darts library with PyTorch backend
+# =============================================================================
