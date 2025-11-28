@@ -1,0 +1,6 @@
+symptoms,vitals_json,acuity_label
+"Chest pain, shortness of breath","{\"hr\": 110, \"bp_sys\": 160, \"bp_dia\": 95, \"spo2\": 91, \"temp\": 37.2}",1
+"Severe abdominal pain, vomiting blood","{\"hr\": 105, \"bp_sys\": 90, \"bp_dia\": 60, \"spo2\": 96, \"temp\": 37.8}",1
+"High fever, neck stiffness, confusion","{\"hr\": 92, \"bp_sys\": 130, \"bp_dia\": 85, \"spo2\": 97, \"temp\": 39.8}",2
+"Moderate back pain, difficulty walking","{\"hr\": 78, \"bp_sys\": 125, \"bp_dia\": 80, \"spo2\": 98, \"temp\": 36.9}",3
+"Sore throat, mild cough","{\"hr\": 72, \"bp_sys\": 118, \"bp_dia\": 75, \"spo2\": 99, \"temp\": 37.5}",5

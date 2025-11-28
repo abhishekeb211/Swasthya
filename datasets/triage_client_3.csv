@@ -1,0 +1,6 @@
+symptoms,vitals_json,acuity_label
+"Severe trauma, multiple fractures","{\"hr\": 125, \"bp_sys\": 85, \"bp_dia\": 55, \"spo2\": 92, \"temp\": 36.2}",1
+"Diabetic ketoacidosis, altered mental status","{\"hr\": 108, \"bp_sys\": 100, \"bp_dia\": 65, \"spo2\": 94, \"temp\": 37.6}",2
+"Kidney stone, severe flank pain","{\"hr\": 95, \"bp_sys\": 145, \"bp_dia\": 92, \"spo2\": 98, \"temp\": 37.4}",3
+"Minor laceration, bleeding controlled","{\"hr\": 74, \"bp_sys\": 120, \"bp_dia\": 76, \"spo2\": 99, \"temp\": 36.9}",4
+"Prescription refill request","{\"hr\": 68, \"bp_sys\": 112, \"bp_dia\": 70, \"spo2\": 99, \"temp\": 36.7}",5
