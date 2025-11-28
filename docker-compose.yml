@@ -1,0 +1,27 @@
+version: '3.7'
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URI=postgres://user:password@db:5432/mydatabase
+      - OTHER_ENV_VAR=value
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+    driver: local
